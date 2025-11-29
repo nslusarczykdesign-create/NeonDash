@@ -1,0 +1,61 @@
+:root{
+  --bg: #1a1a1a;
+  --neon: #00faff; /* cyan neon */
+  --neon-2: #7cff00; /* lime alternative */
+  --muted: #9aa0a6;
+  --ui-bg: rgba(255,255,255,0.02);
+  --glass: rgba(255,255,255,0.03);
+}
+html,body{
+  height:100%;
+  margin:0;
+  background:var(--bg);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: #ddd;
+  -webkit-font-smoothing:antialiased;
+}
+#game{
+  display:block;
+  width:100vw;
+  height:100vh;
+  background:var(--bg);
+}
+#ui{
+  position:fixed;
+  left:12px;
+  top:12px;
+  z-index:10;
+  color:var(--neon);
+  text-shadow: 0 0 8px rgba(0,250,255,0.25);
+  pointer-events:none;
+}
+#title{
+  font-weight:700;
+  font-size:18px;
+}
+#info{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:6px;
+}
+#status{
+  margin-top:6px;
+  font-size:12px;
+  color:#fff;
+}
+#restart{
+  position:fixed;
+  right:16px;
+  top:16px;
+  pointer-events:auto;
+  background:transparent;
+  border:1px solid rgba(255,255,255,0.06);
+  color:var(--neon);
+  padding:8px 12px;
+  border-radius:6px;
+  cursor:pointer;
+  box-shadow:0 0 12px rgba(0,250,255,0.08);
+}
+#restart:hover{
+  transform:translateY(-1px);
+}
