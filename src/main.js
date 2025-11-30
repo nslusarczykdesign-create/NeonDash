@@ -86,34 +86,37 @@ function update(dt){
         break;
       }
 
-      // Decide which axis the collision is primarily on by comparing overlap amounts.
+      // 1. Check Landing Priority
+      // If we were above the block in the previous frame (prevBottom <= blockTop)
+      // AND we are falling (vy >= 0), this is a LANDING, regardless of overlap shapes.
+      // This fixes the "seam glitch" where falling diagonally into a new column looks like a side-hit.
+      const prevBottom = player.prevY + player.h;
+      const blockTop = c.y;
+      
+      // We add a small tolerance (+4) for floating point jitters
+      const wasAbove = prevBottom <= blockTop + 4;
+      const isFalling = player.vy >= -10; // Allow tiny upward jitter
+
+      if (wasAbove && isFalling) {
+         // Safe landing: snap to top
+         player.landOn(blockTop);
+         landingThisFrame = true;
+         // Landing resolves the Y-overlap, so we don't need to check side-hit for this block
+         continue;
+      }
+
+      // 2. If not a clear landing from above, check Axis to see if it's a Ceiling hit or Side hit
       // Smaller overlap indicates the primary penetration axis.
       if (overlapY <= overlapX){
-        // Vertical collision (top/bottom). Check if it's a landing from above.
-        const prevBottom = player.prevY + player.h;
-        const curBottom = player.y + player.h;
-        const blockTop = c.y;
-
-        // landedFromAbove: previous bottom was above (or just touching) the block top
-        // and current bottom intersects it; allow small tolerances and allow tiny upward vy.
-        const landedFromAbove = prevBottom <= blockTop + 2 && curBottom >= blockTop - 2 && player.vy >= -80;
-
-        if (landedFromAbove){
-          // Safe landing: snap to top
-          player.landOn(blockTop);
-          landingThisFrame = true;
-          // Continue checking others (landing resolves vertical overlap)
-          continue;
-        } else {
-          // Vertical collision but not from above (e.g. hitting underside) -> death
-          dead = true;
-          running = false;
-          player.die();
-          spawnDeathParticles(player.cx(), player.cy());
-          restartBtn.hidden = false;
-          statusEl.textContent = 'You Died — Click / Tap to Restart';
-          break;
-        }
+        // Vertical collision but NOT from above.
+        // This means we hit the bottom of a block (head bonk).
+        dead = true;
+        running = false;
+        player.die();
+        spawnDeathParticles(player.cx(), player.cy());
+        restartBtn.hidden = false;
+        statusEl.textContent = 'You Died — Click / Tap to Restart';
+        break;
       } else {
         // Horizontal collision (side hit) -> death
         dead = true;
