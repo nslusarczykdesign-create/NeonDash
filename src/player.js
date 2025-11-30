@@ -5,28 +5,26 @@ export default class Player {
     this.h = this.tile * 0.9;
     this.x = opts.x || 100;
     this.y = opts.y || 0;
-    this.vx = 300; // constant forward speed px/s
+    this.vx = 300; 
     this.vy = 0;
-    this.g = 1800; // gravity
+    this.g = 1800; 
     this.jumpSpeed = -700;
     this.onGround = false;
 
-    this.angle = 0; // radians
-    this.angVel = Math.PI / 2; // rotate 90 degrees per second while airborne
+    this.angle = 0; 
+    this.angVel = Math.PI / 2;
     this.rotationWhileAirborne = this.angVel;
 
     this.trailParticles = [];
     this.deathParticles = [];
 
     this.prevY = this.y;
-    this.holdJump = false;
-
     this.reset();
   }
 
   reset(){
     this.x = 100;
-    this.y = 200;
+    this.y = 200; // Start in air
     this.vy = 0;
     this.onGround = false;
     this.angle = 0;
@@ -39,7 +37,6 @@ export default class Player {
   cy(){ return this.y + this.h/2; }
 
   deathBox(){
-    // 20% smaller than visual sprite
     const shrink = 0.20;
     const sx = this.w * shrink;
     const sy = this.h * shrink;
@@ -54,10 +51,8 @@ export default class Player {
   update(dt, input, level){
     this.prevY = this.y;
 
-    // horizontal progression (constant)
     this.x += this.vx * dt;
 
-    // input jump pressed
     if (input.isPressed){
       if (this.onGround){
         this.jump();
@@ -65,26 +60,22 @@ export default class Player {
       input.consumePress();
     }
 
-    // physics
     this.vy += this.g * dt;
     this.y += this.vy * dt;
 
-    // rotation while airborne
     if (!this.onGround){
       this.angle += this.rotationWhileAirborne * dt;
     }
 
-    // Default to airborne every frame.
-    // main.js collision detection will set this.onGround = true if we land on a block.
-    this.onGround = false;
+    // --- THE FIX ---
+    // Do NOT check level.groundY() here. 
+    // We let main.js handle all collisions.
+    this.onGround = false; 
 
-    // keep angle normalized
     this.angle = normalizeAngle(this.angle);
-
-    // create trail
     this.makeTrail(dt);
 
-    // update particles
+    // particles update
     for (let p of this.trailParticles){
       p.life -= dt;
       p.x += p.vx * dt;
@@ -104,7 +95,6 @@ export default class Player {
   }
 
   makeTrail(dt){
-    // leave faint, shrinking copies behind
     const p = {
       x: this.cx(),
       y: this.cy(),
@@ -119,30 +109,22 @@ export default class Player {
     if (this.trailParticles.length > 30) this.trailParticles.shift();
   }
 
-  updateParticles(dt){
-    // handled inside update
-  }
+  updateParticles(dt){ /* handled in update */ }
 
   drawParticles(ctx){
-    // trail
     for (let p of this.trailParticles){
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.angle);
       ctx.globalAlpha = Math.max(0, p.life / 0.33) * 0.6;
       ctx.fillStyle = p.color;
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = p.color;
       ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
       ctx.restore();
     }
-    // death particles
     for (let p of this.deathParticles){
       ctx.save();
       ctx.globalAlpha = Math.max(0, p.life);
       ctx.fillStyle = p.color;
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = p.color;
       ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
       ctx.restore();
     }
@@ -152,17 +134,13 @@ export default class Player {
     ctx.save();
     ctx.translate(this.x + this.w/2, this.y + this.h/2);
     ctx.rotate(this.angle);
-    // neon fill
     ctx.fillStyle = '#00faff';
     ctx.shadowBlur = 18;
     ctx.shadowColor = '#00faff';
     ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h);
-
-    // visual outline
     ctx.lineWidth = 2;
     ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     ctx.strokeRect(-this.w/2, -this.h/2, this.w, this.h);
-
     ctx.restore();
   }
 
@@ -170,10 +148,8 @@ export default class Player {
     this.onGround = true;
     this.vy = 0;
     this.y = blockTop - this.h;
-    // snap rotation to nearest 90 degrees (π/2)
     const snap = Math.PI / 2;
-    const snapped = Math.round(this.angle / snap) * snap;
-    this.angle = snapped;
+    this.angle = Math.round(this.angle / snap) * snap;
   }
 
   jump(){
@@ -182,14 +158,11 @@ export default class Player {
   }
 
   die(){
-    // stop forward speed
     this.vx = 0;
   }
 }
 
-// helpers
 function normalizeAngle(a){
-  // keep between -PI..PI for numerical stability
   while (a > Math.PI) a -= Math.PI*2;
   while (a <= -Math.PI) a += Math.PI*2;
   return a;

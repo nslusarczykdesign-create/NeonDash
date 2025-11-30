@@ -28,7 +28,6 @@ const player = new Player({ x: 100, y: 0, tile: TILE });
 
 let cameraX = 0;
 let last = performance.now();
-let acc = 0;
 let running = true;
 let dead = false;
 let distance = 0;
@@ -63,12 +62,11 @@ function update(dt){
   cameraX = targetCameraX;
 
   // collisions and death detection
-  // Get blocks in near camera window
   const colliders = level.getActiveColliders(cameraX, W);
   let landingThisFrame = false;
 
-  // We'll use a penetration-based AABB test to decide whether collision is vertical (landing) or horizontal (side)
   const pb = player.deathBox();
+  
   for (let c of colliders){
     // compute overlap (penetration amounts)
     const overlapX = Math.min(pb.x + pb.w, c.x + c.w) - Math.max(pb.x, c.x);
@@ -77,54 +75,38 @@ function update(dt){
     if (overlapX > 0 && overlapY > 0){
       // Spike tiles are always death
       if (c.type === 2){
-        dead = true;
-        running = false;
-        player.die();
-        spawnDeathParticles(player.cx(), player.cy());
-        restartBtn.hidden = false;
-        statusEl.textContent = 'You Died — Click / Tap to Restart';
+        die();
         break;
       }
 
-      // 1. Check Landing Priority
-      // If we were above the block in the previous frame (prevBottom <= blockTop)
-      // AND we are falling (vy >= 0), this is a LANDING, regardless of overlap shapes.
-      // This fixes the "seam glitch" where falling diagonally into a new column looks like a side-hit.
+      // --- THE FIX ---
+      // Check if we were above the block in the previous frame.
+      // If we were above, it is a landing. Period.
+      // This ignores "corner hits" where the side overlap might be smaller than the vertical overlap.
       const prevBottom = player.prevY + player.h;
       const blockTop = c.y;
-      
-      // We add a small tolerance (+4) for floating point jitters
-      const wasAbove = prevBottom <= blockTop + 4;
-      const isFalling = player.vy >= -10; // Allow tiny upward jitter
+      const tolerance = 10; // Allow sloppy sub-pixel movements
 
-      if (wasAbove && isFalling) {
-         // Safe landing: snap to top
-         player.landOn(blockTop);
-         landingThisFrame = true;
-         // Landing resolves the Y-overlap, so we don't need to check side-hit for this block
-         continue;
+      // Logic: Was I strictly above the block previously? And am I falling/flat (not jumping up through it)?
+      const wasAbove = prevBottom <= blockTop + tolerance;
+      const notJumpingUp = player.vy >= -50; 
+
+      if (wasAbove && notJumpingUp) {
+        // Safe landing
+        player.landOn(blockTop);
+        landingThisFrame = true;
+        // Collision handled, skip death checks for this block
+        continue;
       }
 
-      // 2. If not a clear landing from above, check Axis to see if it's a Ceiling hit or Side hit
-      // Smaller overlap indicates the primary penetration axis.
+      // If we weren't above, we check if it's a side hit or a ceiling hit
       if (overlapY <= overlapX){
-        // Vertical collision but NOT from above.
-        // This means we hit the bottom of a block (head bonk).
-        dead = true;
-        running = false;
-        player.die();
-        spawnDeathParticles(player.cx(), player.cy());
-        restartBtn.hidden = false;
-        statusEl.textContent = 'You Died — Click / Tap to Restart';
+        // Vertical hit, but not from above -> Ceiling hit -> Death
+        die();
         break;
       } else {
-        // Horizontal collision (side hit) -> death
-        dead = true;
-        running = false;
-        player.die();
-        spawnDeathParticles(player.cx(), player.cy());
-        restartBtn.hidden = false;
-        statusEl.textContent = 'You Died — Click / Tap to Restart';
+        // Horizontal hit -> Faceplant -> Death
+        die();
         break;
       }
     }
@@ -135,15 +117,17 @@ function update(dt){
     player.jump();
   }
 
-  // Update particles
   player.updateParticles(dt);
-
-  // distance for level progress
   distance = player.x;
 }
 
-function aabbIntersect(a, b){
-  return !(a.x + a.w <= b.x || a.x >= b.x + b.w || a.y + a.h <= b.y || a.y >= b.y + b.h);
+function die(){
+  dead = true;
+  running = false;
+  player.die();
+  spawnDeathParticles(player.cx(), player.cy());
+  restartBtn.hidden = false;
+  statusEl.textContent = 'You Died — Click / Tap to Restart';
 }
 
 function spawnDeathParticles(x, y){
@@ -162,23 +146,16 @@ function spawnDeathParticles(x, y){
   }
 }
 
-// render
 function render(){
   // background
   ctx.fillStyle = '#1a1a1a';
   ctx.fillRect(0,0,W,H);
 
   ctx.save();
-  // translate camera
   ctx.translate(-cameraX, 0);
 
-  // draw level
   level.draw(ctx, W, H);
-
-  // draw player (with glow)
   player.draw(ctx);
-
-  // draw player's particles (trail)
   player.drawParticles(ctx);
 
   ctx.restore();
@@ -194,19 +171,13 @@ function render(){
   ctx.restore();
 }
 
-// main loop
 function loop(now){
   const dt = Math.min(0.03, (now - last) / 1000);
   last = now;
-
   update(dt);
   render();
-
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
-// Helper: simple AABB to be used by player/level (already inlined above)
-
-// initial reset to layout player properly
 resetGame();
