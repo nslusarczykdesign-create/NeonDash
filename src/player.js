@@ -74,16 +74,11 @@ export default class Player {
       this.angle += this.rotationWhileAirborne * dt;
     }
 
-    // simple floor check vs level ground (level provides groundY)
-    const groundY = level.groundY();
-    if (this.y + this.h >= groundY){
-      // landed on ground
-      if (!this.onGround){
-        this.landOn(groundY);
-      }
-    } else {
-      this.onGround = false;
-    }
+    // We rely on main.js collision detection to set onGround.
+    // If we are not colliding with a block this frame (handled in main),
+    // we assume we are in the air until the next collision check.
+    // Resetting onGround here allows falling off ledges.
+    this.onGround = false;
 
     // keep angle normalized
     this.angle = normalizeAngle(this.angle);
